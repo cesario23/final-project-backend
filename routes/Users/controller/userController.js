@@ -20,10 +20,45 @@ async function createUser(req, res){
         res.json({message: "user created"})
 
     }catch(e){
-        console.log(e)
+        res.status(500).json({message: dbErrorHelper(e)})
     }
 }
 
 async function login(req, res){
-    
+    try{
+    let foundUser = await User.findOne({email: req.body.email});
+    if(!foundUser){
+        throw Error ("user not found, please sign up");
+    } 
+    let comparedPassword = await bcrypt.compare(
+        req.body.password,
+        foundUser.password
+    );
+    if(!comparedPassword){
+        throw Error("check email and passwords");
+    }
+    let jwtToken = jwt.sign({username: foundUser.username,
+       email: foundUser.email,
+    },
+    process.env.JWT_USER_SECRET_KEY
+    );
+    res.cookie("jwt-cookie", jwtToken,{
+        expires: new Date(Date.now() + 3600000),
+        httpOnly: false,
+        secure: false,
+    });
+    res.json({
+        user:{
+            email: foundUser.email,
+            username: foundUser.username,
+        },
+    })
+    }catch(e){
+        res.status(500).json({message: dbErrorHelper(e)})
+    }
+}
+
+module.exports = {
+    createUser,
+    login,
 }
